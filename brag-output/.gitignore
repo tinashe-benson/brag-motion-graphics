@@ -1,0 +1,7 @@
+work/node_modules/
+work/package-lock.json
+work/*.wav
+work/*.log
+work/audio-data.json
+composition/snapshots/
+composition/.hyperframes/

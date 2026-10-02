@@ -2,8 +2,13 @@
 // Every timing lives in T so picture and the pre-mixed SFX stem stay in lockstep.
 import fs from "node:fs";
 import path from "node:path";
+import { slackCSS, slackHTML } from "./slack.mjs";
 
-const OUT = path.resolve("../composition");
+const FORMAT = process.argv[2] === "vertical" ? "vertical" : "landscape";
+const V = FORMAT === "vertical";
+const W = V ? 1080 : 1920, H = V ? 1920 : 1080;
+const OUT = path.resolve(V ? "../composition-vertical" : "../composition");
+if (V) { fs.mkdirSync(OUT, { recursive: true }); fs.cpSync(path.resolve("../composition/assets"), path.join(OUT, "assets"), { recursive: true }); }
 
 // ---------------------------------------------------------------- timing
 // Music: vol-12, 109.96 BPM, beat ≈ 0.545s. 8-bar phrases land on
@@ -43,43 +48,14 @@ const T = {
 const M1 = "prep me for tomorrow's investor call. Pull last week's Fathom notes, check my calendar and draft the follow-up.";
 const M3 = "screen today's applicants for the ops role.";
 
-// ---------------------------------------------------------------- icons
-const ICON = {
-  slack: `<svg viewBox="0 0 48 48">${[["#36C5F0",0],["#2EB67D",90],["#ECB22E",180],["#E01E5A",270]].map(([c,r])=>`<g transform="rotate(${r} 24 24)" fill="${c}"><rect x="4" y="18" width="17" height="6" rx="3"/><rect x="18" y="4" width="6" height="10" rx="3"/></g>`).join("")}</svg>`,
-  gmail: `<svg viewBox="0 0 48 48"><path d="M6 14v22a3 3 0 0 0 3 3h6V22l9 7 9-7v17h6a3 3 0 0 0 3-3V14l-4-3-14 11L10 11z" fill="#EA4335"/>
-    <path d="M6 14v22a3 3 0 0 0 3 3h6V22z" fill="#4285F4"/><path d="M33 22v17h6a3 3 0 0 0 3-3V14z" fill="#34A853"/>
-    <path d="M33 13v9l9-8V12c0-3-3.5-4.8-5.8-3z" fill="#FBBC04"/><path d="M15 22v-9l9 7 9-7v9l-9 7z" fill="#EA4335"/>
-    <path d="M6 12v2l9 8v-9l-3.2-4C9.5 7.2 6 9 6 12z" fill="#C5221F"/></svg>`,
-  gcal: `<svg viewBox="0 0 48 48"><rect x="6" y="6" width="36" height="36" rx="7" fill="#1a73e8"/><rect x="6" y="6" width="36" height="9" rx="4" fill="#1558b0"/>
-    <text x="24" y="36" text-anchor="middle" font-family="Inter" font-weight="800" font-size="19" fill="#fff">31</text></svg>`,
-  gdrive: `<svg viewBox="0 0 48 48"><path d="M17 6h14l14 24h-14z" fill="#FBBC04"/><path d="M17 6L3 30l7 12 14-24z" fill="#0F9D58"/><path d="M10 42h28l7-12H17z" fill="#4285F4"/></svg>`,
-  gdocs: `<svg viewBox="0 0 48 48"><path d="M12 4h17l10 10v28a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#4285F4"/><path d="M29 4v10h10z" fill="#a1c2fa"/>
-    <rect x="16" y="22" width="16" height="2.6" rx="1.3" fill="#fff"/><rect x="16" y="28" width="16" height="2.6" rx="1.3" fill="#fff"/><rect x="16" y="34" width="10" height="2.6" rx="1.3" fill="#fff"/></svg>`,
-  gsheets: `<svg viewBox="0 0 48 48"><path d="M12 4h17l10 10v28a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#0F9D58"/><path d="M29 4v10h10z" fill="#87ceac"/>
-    <rect x="15" y="21" width="18" height="15" rx="1.5" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M15 28.5h18M24 21v15" stroke="#fff" stroke-width="2.4"/></svg>`,
-  gtasks: `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="#2684fc"/><path d="M16 24.5l5.5 5.5L32.5 18" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  clickup: `<svg viewBox="0 0 48 48"><defs><linearGradient id="cu1" x1="0" x2="1"><stop offset="0" stop-color="#8930FD"/><stop offset="1" stop-color="#49CCF9"/></linearGradient>
-    <linearGradient id="cu2" x1="0" x2="1"><stop offset="0" stop-color="#FF02F0"/><stop offset="1" stop-color="#FFC800"/></linearGradient></defs>
-    <path d="M9 34.5l5.2-4c2.8 3.6 5.7 5.3 9.8 5.3s7-1.7 9.8-5.3l5.2 4C35.1 39.5 30.3 42 24 42s-11-2.5-15-7.5z" fill="url(#cu2)"/>
-    <path d="M24 16.5L14.8 24.4 10.5 19.4 24 7.8l13.5 11.6-4.3 5z" fill="url(#cu1)"/></svg>`,
-  fathom: `<svg viewBox="0 0 48 48"><rect x="4" y="4" width="40" height="40" rx="9" fill="#0b0b0f"/>
-    <path d="M14 30l12-12h7L21 30z" fill="#fff"/><path d="M14 21l6-6h7l-6 6z" fill="#fff" opacity=".85"/><path d="M21 33l6-6h7l-6 6z" fill="#fff" opacity=".85"/></svg>`,
-};
-
-const LOGO = (id) => `<svg class="logo-svg" viewBox="0 0 100 100" aria-label="Argo">
-  <defs><clipPath id="${id}-c"><rect width="100" height="100" rx="22"/></clipPath>
-  <linearGradient id="${id}-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fd56a"/><stop offset="1" stop-color="#5fb84d"/></linearGradient></defs>
-  <g clip-path="url(#${id}-c)">
-    <rect width="100" height="100" fill="url(#${id}-g)"/>
-    <path d="M14 104 L14 95 C16 83 28 76 42 75 L60 75 C72 76 82 83 84 95 L84 104 Z" fill="#59646d"/>
-    <path d="M29 66 C19 41 33 14 61 13 C71 13 78 17.5 81 25 C74 22 67.5 21.2 61 22 C43 24 34.5 40 38.5 61 Z" fill="#0b1a2c"/>
-    <path d="M32.5 59 C27 40 39 22.5 60.5 18.6" stroke="#d0c552" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-    <path d="M37.5 62 C35 45 44.5 32 58.5 32 C71 32 79 41.5 79 54 L79 66 C79 75 74 81 67 83.5 L61 85 C50 85 40.5 76 37.5 62 Z" fill="#0b1a2c"/>
-    <path d="M60 66 C63 74 67.5 79.5 73 82.5 C76.5 79 78.6 73.5 78.8 66 Z" fill="#17304a"/>
-    <rect x="62.5" y="49" width="16" height="6.4" rx="3.2" fill="#e9f0f4"/>
-    <path d="M70.5 55.4 V64" stroke="#e9f0f4" stroke-width="3.2" stroke-linecap="round"/>
-    <path d="M45 41 C49 36.5 54 34.5 59 34.5" stroke="#2b4058" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-  </g></svg>`;
+// ---------------------------------------------------------------- logos
+// Official artwork only (see assets/logos/SOURCES.md). Fathom's mark sits on
+// black, the way the Argo dashboard and Fathom's app icon present it.
+const ICON = (id) => id === "fathom"
+  ? `<span class="fathom-ic"><img src="assets/logos/fathom.svg" alt="Fathom"></span>`
+  : `<img class="lg" src="assets/logos/${id}.svg" alt="">`;
+const LOGO = () => `<img class="argo" src="assets/argo-mark.png" alt="Argo Agent">`;
+const WORDMARK = `<img class="wordmark" src="assets/argo-wordmark-white.png" alt="Argo Agent by Hire Zim">`;
 
 const NAV_ICON = {
   Projects: `<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>`,
@@ -99,17 +75,26 @@ const CURSOR = `<svg viewBox="0 0 28 34"><path d="M3 2 L3 27 L9.5 21 L14 31.5 L1
 const CHECK = `<svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 // ---------------------------------------------------------------- data
-const TILES = [
-  { id: "slack", name: "Slack", x: 330, y: 255, s: 1.05, n: [3, 4, 7, 12] },
-  { id: "gmail", name: "Gmail", x: 1590, y: 235, s: 1.0, n: [12, 14, 19, 27] },
-  { id: "gcal", name: "Google Calendar", x: 205, y: 640, s: 0.86, n: [2, 3, 5] },
-  { id: "gdrive", name: "Google Drive", x: 1725, y: 625, s: 0.9, n: [1, 4, 6] },
-  { id: "gdocs", name: "Google Docs", x: 470, y: 925, s: 0.8, n: [5, 6, 9] },
-  { id: "gsheets", name: "Google Sheets", x: 1450, y: 930, s: 0.84, n: [2, 3, 8] },
-  { id: "gtasks", name: "Google Tasks", x: 790, y: 150, s: 0.7, n: [8, 9, 14] },
-  { id: "clickup", name: "ClickUp", x: 1165, y: 145, s: 0.74, n: [6, 9, 13] },
-  { id: "fathom", name: "Fathom", x: 960, y: 965, s: 0.7, n: [1, 2, 4] },
+const TILE_BASE = [
+  { id: "slack", name: "Slack", n: [3, 4, 7, 12] },
+  { id: "gmail", name: "Gmail", n: [12, 14, 19, 27] },
+  { id: "gcal", name: "Google Calendar", n: [2, 3, 5] },
+  { id: "gdrive", name: "Google Drive", n: [1, 4, 6] },
+  { id: "gdocs", name: "Google Docs", n: [5, 6, 9] },
+  { id: "gsheets", name: "Google Sheets", n: [2, 3, 8] },
+  { id: "gtasks", name: "Google Tasks", n: [8, 9, 14] },
+  { id: "clickup", name: "ClickUp", n: [6, 9, 13] },
+  { id: "fathom", name: "Fathom", n: [1, 2, 4] },
 ];
+// [x, y, scale] per format; the centre band stays clear for the hook type
+const TILE_POS = V ? [
+  [215, 330, 1.0], [865, 330, 1.0], [365, 600, 0.78], [215, 1420, 0.95], [420, 1690, 0.8],
+  [865, 1420, 0.9], [540, 215, 0.74], [715, 600, 0.76], [680, 1690, 0.74],
+] : [
+  [330, 255, 1.05], [1590, 235, 1.0], [205, 640, 0.86], [1725, 625, 0.9], [470, 925, 0.8],
+  [1450, 930, 0.84], [790, 150, 0.7], [1165, 145, 0.74], [960, 965, 0.7],
+];
+const TILES = TILE_BASE.map((t, i) => ({ ...t, x: TILE_POS[i][0], y: TILE_POS[i][1], s: TILE_POS[i][2] }));
 // badge bumps after the pop-in: [tileIndex, time]; accelerates into the drop
 const BUMPS = [[1, 3.15], [0, 3.7], [6, 4.15], [3, 4.85], [1, 5.3], [4, 5.65], [7, 6.0], [0, 6.3], [2, 6.6], [5, 6.85], [1, 7.05], [8, 7.22], [6, 7.38], [0, 7.52], [3, 7.64]];
 
@@ -140,7 +125,7 @@ const tilesHTML = TILES.map((t, i) => `
   <div class="tile" id="tile${i}" style="left:${t.x - 85}px;top:${t.y - 85}px">
     <div class="tile-depth" style="transform:scale(${t.s})">
       <div class="tile-pop"><div class="tile-float">
-        <div class="tile-face">${ICON[t.id]}</div>
+        <div class="tile-face"><span class="ic">${ICON(t.id)}</span></div>
         <div class="tile-badge"><span class="badge-n">${t.n[0]}</span></div>
         <div class="tile-name">${t.name}</div>
       </div></div>
@@ -153,7 +138,7 @@ const navHTML = NAV.map((n) => `<div class="nav-item${n === "Connected apps" ? "
 
 const cardsHTML = CARDS.map(([id, name, desc], i) => `
   <div class="ca-card" id="card${i}">
-    <div class="ca-top"><div class="ca-icon">${ICON[id]}</div><div class="ca-name">${name}</div>
+    <div class="ca-top"><div class="ca-icon">${ICON(id)}</div><div class="ca-name">${name}</div>
       <div class="ca-badge">${CHECK}<span>Connected</span></div></div>
     <div class="ca-desc">${desc}</div>
     <div class="ca-btn">Disconnect</div>
@@ -171,7 +156,7 @@ const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=1920, height=1080" />
+<meta name="viewport" content="width=${W}, height=${H}" />
 <title>Argo — launch showreel</title>
 <script src="assets/vendor/gsap.min.js"></script>
 <script src="assets/audio-data.js"></script>
@@ -187,7 +172,10 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
 .inner{position:absolute;inset:0}
 .serif{font-family:"Instrument Serif",serif;font-style:italic;font-weight:400;letter-spacing:-0.01em}
 .g{color:var(--green)}
-.logo-svg{display:block;width:100%;height:100%}
+.lg,.argo{display:block;width:100%;height:100%;object-fit:contain}
+.fathom-ic{display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#000;border-radius:22%}
+.fathom-ic img{display:block;width:64%;height:64%;object-fit:contain}
+.wordmark{display:block;height:100%;width:auto}
 
 /* ---------- background ---------- */
 #bg .base{position:absolute;inset:0;background:radial-gradient(ellipse 80% 70% at 50% 42%,#11305a 0%,#0a1f3b 45%,#061428 100%)}
@@ -206,7 +194,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
 .tile-depth,.tile-pop,.tile-float{position:absolute;inset:0}
 .tile-face{position:absolute;inset:0;border-radius:40px;background:linear-gradient(160deg,#ffffff,#e9eef5);
   box-shadow:0 30px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center}
-.tile-face svg{width:92px;height:92px}
+.tile-face .ic{display:block;width:100px;height:100px}
 .tile-badge{position:absolute;right:-12px;top:-12px;min-width:52px;height:52px;padding:0 14px;border-radius:26px;background:#d4144f;
   border:4px solid #0a1f3b;display:flex;align-items:center;justify-content:center;font:800 24px/1 "Inter";color:#fff}
 .tile-name{position:absolute;left:-60px;right:-60px;top:188px;text-align:center;font:600 22px/1 "Inter";color:rgba(255,255,255,.82);letter-spacing:.01em}
@@ -220,8 +208,8 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
 #s2-center{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 #s2-row{position:relative;height:250px;display:flex;align-items:center;gap:56px}
 #s2-logo{position:relative;width:250px;height:250px;flex:none}
-#s2-logo .logo-wrap{position:absolute;inset:0;border-radius:56px;box-shadow:0 40px 90px rgba(0,0,0,.5),0 0 120px rgba(110,199,90,.35)}
-#s2-word{font:800 230px/1 "Inter";letter-spacing:-.045em;color:#fff;white-space:nowrap;padding:.06em 0 .22em;margin:-.06em 0 -.22em}
+#s2-logo .logo-wrap{position:absolute;inset:0;border-radius:44px;box-shadow:0 40px 90px rgba(0,0,0,.5),0 0 120px rgba(110,199,90,.35)}
+#s2-word{height:190px}
 .ring{position:absolute;left:50%;top:50%;width:250px;height:250px;margin:-125px 0 0 -125px;border-radius:64px;border:3px solid rgba(110,199,90,.9)}
 #s2-tag{margin-top:64px;font:500 64px/1.1 "Inter";letter-spacing:-.02em;color:#fff;white-space:nowrap}
 #s2-tag .serif{font-size:82px}
@@ -261,7 +249,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
 #s4-cam{position:absolute;inset:0}
 .ag-side{position:absolute;left:0;top:40px;bottom:0;width:300px;background:var(--navy);color:#fff}
 .ag-brand{position:absolute;left:22px;top:20px;display:flex;align-items:center;gap:12px;font:700 25px/1 "Inter"}
-.ag-brand .lg{width:32px;height:32px;border-radius:7px;overflow:hidden}
+.ag-brand .mk{width:34px;height:34px}
 .ag-new{position:absolute;left:12px;right:12px;top:70px;height:54px;border-radius:12px;background:var(--green);color:#0a1f3b;
   display:flex;align-items:center;gap:14px;padding-left:24px;font:600 20px/1 "Inter"}
 .ag-new b{font-weight:400;font-size:30px;margin-top:-3px}
@@ -287,7 +275,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
 .grid{margin-top:22px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .ca-card{position:relative;height:184px;border:1.5px solid var(--green-soft);border-radius:14px;background:#fff;padding:18px 20px}
 .ca-top{display:flex;align-items:center;gap:12px}
-.ca-icon{width:34px;height:34px}.ca-icon svg{width:100%;height:100%}
+.ca-icon{width:34px;height:34px;flex:none}
 .ca-name{font:600 20px/1 "Inter";color:#0b1220;white-space:nowrap}
 .ca-badge{margin-left:auto;display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1.5px solid #8fd081;border-radius:999px;font:600 15px/1 "Inter";color:#2b7a2b;background:#f3fbf1}
 .ca-badge svg{width:14px;height:14px}
@@ -312,71 +300,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
 #s4-callout b{margin-right:.32em}
 #s4-callout b{color:var(--green);font-weight:800}
 
-/* ---------- S5 slack ---------- */
-.sl{font-family:"Lato",sans-serif;color:#1d1c1d}
-.sl-top{position:absolute;left:0;right:0;top:0;height:46px;background:#3b0d3c;display:flex;align-items:center;justify-content:center}
-.sl-search{width:620px;height:30px;border-radius:7px;background:rgba(255,255,255,.18);font:400 16px/30px "Lato";color:#f0e6f0;padding-left:14px}
-.sl-rail{position:absolute;left:0;top:46px;bottom:0;width:74px;background:#3b0d3c;display:flex;flex-direction:column;align-items:center;padding-top:14px;gap:14px}
-.sl-ws{width:42px;height:42px;border-radius:10px;background:#fff;color:#3b0d3c;font:900 20px/42px "Lato";text-align:center;box-shadow:0 0 0 3px #3b0d3c,0 0 0 5px rgba(255,255,255,.75)}
-.sl-ri{width:38px;height:38px;border-radius:9px;background:rgba(255,255,255,.12)}
-.sl-side{position:absolute;left:74px;top:46px;bottom:0;width:300px;background:#4a154b;color:#e6d7e6;padding-top:14px}
-.sl-wsname{padding:0 20px 14px;font:900 22px/1.2 "Lato";color:#fff;border-bottom:1px solid rgba(255,255,255,.12)}
-.sl-sec{padding:18px 20px 8px;font:700 16px/1 "Lato";color:#dccfdc}
-.sl-ch{margin:0 10px;height:34px;padding-left:12px;border-radius:7px;display:flex;align-items:center;gap:8px;font:400 18px/1 "Lato";color:#e6d7e6}
-.sl-ch .hash{font-weight:400;color:#cbb9cb;width:14px}
-.sl-ch.on{background:#1164a3;color:#fff;font-weight:700}.sl-ch.on .hash{color:#fff}
-.sl-dm{margin:0 10px;height:34px;padding-left:12px;display:flex;align-items:center;gap:10px;font:400 18px/1 "Lato";color:#e6d7e6}
-.sl-dm .d{width:22px;height:22px;border-radius:6px;background:#8a6d8b;display:block;flex:none}
-.sl-dm .lg{width:22px;height:22px;border-radius:5px;overflow:hidden;flex:none}
-.sl-main{position:absolute;left:374px;right:0;top:46px;bottom:0;background:#fff}
-.sl-head{position:absolute;left:0;right:0;top:0;height:62px;border-bottom:1px solid #e3e1e3;display:flex;align-items:center;padding-left:26px;font:900 22px/1 "Lato";color:#1d1c1d;gap:8px}
-.sl-head small{margin-left:auto;margin-right:26px;font:400 16px/1 "Lato";color:#616061}
-.sl-feed{position:absolute;left:0;right:0;top:62px;bottom:172px;overflow:hidden}
-.sl-col{position:absolute;left:0;right:0;bottom:0}
-.msg{position:relative;padding:10px 30px 10px 98px}
-.msg .av{position:absolute;left:28px;top:14px;width:52px;height:52px;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;font:900 20px/1 "Lato";color:#fff}
-.msg .nm{font:900 20px/1.3 "Lato";color:#1d1c1d}
-.msg .nm .app{display:inline-block;margin-left:8px;padding:2px 5px;border-radius:4px;background:#e8e8e8;font:700 12px/1.2 "Lato";color:#4d4d4d;vertical-align:3px}
-.msg .nm .ts{margin-left:10px;font:400 15px/1 "Lato";color:#616061}
-.msg .tx{margin-top:4px;font:400 21px/1.5 "Lato";color:#1d1c1d;max-width:1130px}
-.mention{background:#e8f5fa;color:#1264a3;padding:0 3px;border-radius:4px;font-weight:700}
-.divider{position:relative;height:44px;display:flex;align-items:center;justify-content:center}
-.divider:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px solid #e3e1e3}
-.divider span{position:relative;padding:4px 16px;border:1px solid #e3e1e3;border-radius:999px;background:#fff;font:700 14px/1 "Lato";color:#1d1c1d}
-.cont{padding:4px 30px 10px 98px}
-.status{display:flex;align-items:center;gap:12px;font:400 19px/1 "Lato";color:#4d4d4d;margin-top:6px}
-.tchip{display:flex;align-items:center;gap:9px;height:38px;padding:0 14px 0 10px;border:1.5px solid #dddddd;border-radius:999px;font:700 17px/1 "Lato";color:#1d1c1d;background:#fff}
-.tchip .ic{width:22px;height:22px}.tchip .ic svg{width:100%;height:100%}
-.tchip .ok{width:20px;height:20px;border-radius:50%;background:#2b7a2b;color:#fff;display:flex;align-items:center;justify-content:center}
-.tchip .ok svg{width:13px;height:13px}
-.tchip .spin{width:18px;height:18px;border-radius:50%;border:2.5px solid #d6d6d6;border-top-color:#1264a3}
-.brief{position:relative;margin-top:2px;width:900px;border:1px solid #dddddd;border-radius:12px;padding:22px 26px 24px 30px;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.06)}
-.brief:before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;border-radius:12px 0 0 12px;background:#6ec75a}
-.br-title{font:900 22px/1.2 "Lato";color:#1d1c1d}
-.br-row{margin-top:16px;display:flex;align-items:center;gap:14px;font:400 20px/1.3 "Lato";color:#1d1c1d}
-.br-row .ic{width:28px;height:28px;flex:none}.br-row .ic svg{width:100%;height:100%}
-.br-row b{font-weight:700}
-.br-acts{position:relative;margin-top:22px;height:48px}
-.btns{position:absolute;inset:0;display:flex;gap:12px}
-.btn{height:48px;padding:0 22px;border-radius:8px;display:flex;align-items:center;font:700 19px/1 "Lato"}
-.btn.pri{background:#007a5a;color:#fff}
-.btn.sec{border:1.5px solid #bbbbbb;color:#1d1c1d;background:#fff}
-.approved{position:absolute;left:0;top:0;height:48px;display:flex;align-items:center;gap:12px;font:700 20px/1 "Lato";color:#1d6b2f;opacity:0}
-.approved .ok{width:28px;height:28px;border-radius:50%;background:#2b7a2b;color:#fff;display:flex;align-items:center;justify-content:center}
-.approved .ok svg{width:17px;height:17px}
-.waiting{display:inline-flex;align-items:center;gap:10px;margin-left:18px;font:400 17px/1 "Lato";color:#616061}
-.waiting i{width:10px;height:10px;border-radius:50%;background:#e8912d;display:block}
-.doneline{display:flex;gap:12px;margin-top:10px}
-.sl-comp{position:absolute;left:24px;right:24px;bottom:24px;height:136px;border:1.5px solid #bdbbbd;border-radius:12px;background:#fff}
-.sl-comp .in{position:absolute;left:18px;right:70px;top:14px;height:60px;font:400 21px/1.4 "Lato";color:#1d1c1d;overflow:hidden}
-.sl-comp .ph{position:absolute;left:18px;top:16px;font:400 21px/1.4 "Lato";color:#616061}
-.caret{display:inline-block;width:2px;height:26px;background:#1d1c1d;vertical-align:-5px;margin-left:1px}
-.sl-comp .bar{position:absolute;left:12px;right:12px;bottom:10px;height:34px;display:flex;align-items:center;gap:16px;padding-left:6px}
-.sl-comp .bar i{width:18px;height:18px;border-radius:4px;background:#dcdcdc;display:block}
-.sl-comp .send{position:absolute;right:10px;bottom:8px;width:44px;height:36px;border-radius:7px;background:#e8e8e8;display:flex;align-items:center;justify-content:center}
-.sl-comp .send.live{background:#007a5a}
-.sl-comp .send svg{width:20px;height:20px}
-
+${slackCSS(V)}
 /* ---------- S6 governance ---------- */
 #s6-left{position:absolute;left:150px;top:0;bottom:0;width:980px;display:flex;flex-direction:column;justify-content:center}
 .gov{font:800 92px/1.14 "Inter";letter-spacing:-.04em;color:#fff;white-space:nowrap;width:max-content;padding-right:.08em}
@@ -386,7 +310,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
 #game b{color:var(--green);font-weight:800;letter-spacing:.02em}
 #s6-right{position:absolute;left:1180px;top:140px;width:600px;height:800px}
 #s6-right svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-#s6-core{position:absolute;left:240px;top:340px;width:120px;height:120px;border-radius:28px;overflow:hidden;box-shadow:0 0 80px rgba(110,199,90,.55)}
+#s6-core{position:absolute;left:240px;top:340px;width:120px;height:120px;border-radius:22px;box-shadow:0 0 80px rgba(110,199,90,.55)}
 
 /* ---------- S7 lockup ---------- */
 #verb-stage{position:absolute;left:0;right:0;top:0;bottom:120px;display:flex;align-items:center;justify-content:center}
@@ -396,22 +320,61 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
 .vr.on{color:var(--green)}
 #lock{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 #lock-row{display:flex;align-items:center;gap:50px}
-#lock-logo{width:210px;height:210px;border-radius:48px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.5),0 0 140px rgba(110,199,90,.4)}
-#lock-word{font:800 200px/1 "Inter";letter-spacing:-.045em;padding:.06em 0 .22em;margin:-.06em 0 -.22em}
+#lock-logo{width:210px;height:210px;border-radius:38px;box-shadow:0 40px 90px rgba(0,0,0,.5),0 0 140px rgba(110,199,90,.4)}
+#lock-word{height:158px}
 #lock-tag{margin-top:52px;font:500 58px/1.1 "Inter";letter-spacing:-.02em}
 #lock-tag .serif{font-size:76px}
 #lock-url{margin-top:52px;height:72px;padding:0 34px;border-radius:999px;background:var(--green);color:#0a1f3b;display:flex;align-items:center;font:800 32px/1 "Inter";letter-spacing:-.01em}
+${V ? `
+/* ================= vertical 1080x1920 overrides ================= */
+#s1-scrim{width:1080px;height:600px;margin:-300px 0 0 -540px}
+.s1-line{font-size:126px}
+.s1-line .serif{font-size:144px}
+#s2-row{flex-direction:column;height:auto;gap:70px}
+#s2-logo{width:300px;height:300px}
+#s2-logo .logo-wrap{border-radius:52px}
+.ring{width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:70px}
+#s2-word{height:236px}
+#s2-tag{white-space:normal;text-align:center;max-width:920px;margin-top:84px;font-size:66px;line-height:1.15}
+#s2-tag .serif{font-size:88px}
+#s3-top{top:190px;height:640px;padding:0 50px}
+#fos-title{font-size:112px;margin-top:30px}
+#fos-sub{font-size:46px;margin-top:34px}
+#never{font-size:82px}
+#starts{font-size:128px;margin-top:14px}
+#slab-wrap{top:930px;width:960px;height:660px;margin-left:-480px}
+#chips{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr)}
+.chip-in{font-size:46px}
+#slab-label{bottom:-112px}
+.win{left:0;top:0}
+#s4-callout{left:0;right:0;bottom:auto;top:1600px;margin:0 auto;width:max-content;font-size:46px;padding:24px 36px;border-radius:22px}
+#s6-right{left:240px;top:40px}
+#s6-left{left:96px;right:96px;width:auto;top:880px;bottom:auto;display:block}
+#gov-eyebrow{margin-bottom:30px;font-size:28px}
+.gov{font-size:84px;line-height:1.16}
+#game{margin-top:44px;font-size:34px;max-width:880px}
+#verb-stage{bottom:260px}
+.verb{font-size:184px}
+#verb-rail{bottom:560px;gap:30px}
+.vr{font-size:24px}
+#lock-row{flex-direction:column;gap:72px}
+#lock-logo{width:290px;height:290px;border-radius:52px}
+#lock-word{height:232px}
+#lock-tag{font-size:62px;text-align:center;max-width:920px;line-height:1.15;margin-top:70px}
+#lock-tag .serif{font-size:84px}
+#lock-url{margin-top:70px;height:84px;font-size:38px;padding:0 42px}
+` : ""}
 </style>
 </head>
 <body>
-<div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="60">
+<div id="root" data-composition-id="main" data-start="0" data-width="${W}" data-height="${H}" data-duration="60">
 
   <div id="bg" class="clip" data-start="0" data-duration="60" data-track-index="0">
     <div class="base"></div>
     <div class="dots" id="dots"></div>
     <div id="glowB"></div>
     <div id="glowA"></div>
-    <svg class="grain" width="1920" height="1080"><filter id="nz"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="4"/></filter><rect width="100%" height="100%" filter="url(#nz)"/></svg>
+    <svg class="grain" width="${W}" height="${H}"><filter id="nz"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="4"/></filter><rect width="100%" height="100%" filter="url(#nz)"/></svg>
     <div class="vig"></div>
   </div>
 
@@ -433,8 +396,8 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
     <div class="inner" id="s2-in">
       <div id="s2-center">
         <div id="s2-row">
-          <div id="s2-logo"><div class="ring" id="ring1"></div><div class="ring" id="ring2"></div><div class="logo-wrap" id="s2-logo-in" style="overflow:hidden;border-radius:56px">${LOGO("lg2")}</div></div>
-          <div id="s2-word">Argo</div>
+          <div id="s2-logo"><div class="ring" id="ring1"></div><div class="ring" id="ring2"></div><div class="logo-wrap" id="s2-logo-in">${LOGO()}</div></div>
+          <div id="s2-word">${WORDMARK}</div>
         </div>
         <div id="s2-tag"><span class="w">The</span> <span class="w">AI</span> <span class="w">Agent</span> <span class="w">for</span> <span class="w serif g">scaling founders.</span></div>
       </div>
@@ -470,7 +433,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
         <div class="win" id="win4">
           <div class="chrome"><i></i><i></i><i></i></div>
           <div class="ag-side">
-            <div class="ag-brand"><div class="lg">${LOGO("lg4")}</div>Argo</div>
+            <div class="ag-brand"><div class="mk">${LOGO()}</div>Argo</div>
             <div class="ag-new"><b>+</b>New chat</div>
             <div class="ag-browse">BROWSE</div>
             <div class="ag-nav">${navHTML}</div>
@@ -508,70 +471,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
   <section id="s5" class="clip" data-start="30.25" data-duration="17.95" data-track-index="1">
     <div class="inner" id="s5-in">
       <div id="s5-cam">
-        <div class="win sl" id="win5">
-          <div class="sl-top"><div class="sl-search">Search Northwind</div></div>
-          <div class="sl-rail"><div class="sl-ws">N</div><div class="sl-ri"></div><div class="sl-ri"></div><div class="sl-ri"></div></div>
-          <div class="sl-side">
-            <div class="sl-wsname">Northwind</div>
-            <div class="sl-sec">▾ Channels</div>${slackChannels}
-            <div class="sl-sec">▾ Direct messages</div>
-            <div class="sl-dm"><span class="d"></span>Jordan Lee</div><div class="sl-dm"><span class="d" style="background:#5b8a72"></span>Priya Shah</div>
-            <div class="sl-sec">▾ Apps</div>
-            <div class="sl-dm"><span class="lg">${LOGO("lg5a")}</span>Argo</div>
-          </div>
-          <div class="sl-main">
-            <div class="sl-head"># founders-office <small>Maya, Jordan, Priya + Argo</small></div>
-            <div class="sl-feed"><div class="sl-col" id="col">
-              <div class="feed-item" id="fi-hist" style="height:142px">
-                <div class="divider"><span>Today</span></div>
-                <div class="msg"><div class="av" style="background:#5d7fa8">JL</div><div class="nm">Jordan Lee<span class="ts">9:58 AM</span></div><div class="tx">Pushed the updated pitch deck to Drive.</div></div>
-              </div>
-              <div class="feed-item" id="fi-m1" style="height:98px">
-                <div class="msg"><div class="av" style="background:#b85a0c">MO</div><div class="nm">Maya Okafor<span class="ts">10:41 AM</span></div>
-                  <div class="tx"><span class="mention">@Argo</span> ${M1}</div></div>
-              </div>
-              <div class="feed-item" id="fi-m2a" style="height:106px">
-                <div class="msg"><div class="av">${LOGO("lg5b")}</div><div class="nm">Argo<span class="app">APP</span><span class="ts">10:41 AM</span></div>
-                  <div class="status">
-                    <div class="tchip" id="tc0"><span class="ic">${ICON.fathom}</span>Fathom<span class="spin" id="tc0s"></span><span class="ok" id="tc0k">${CHECK}</span></div>
-                    <div class="tchip" id="tc1"><span class="ic">${ICON.gcal}</span>Google Calendar<span class="spin" id="tc1s"></span><span class="ok" id="tc1k">${CHECK}</span></div>
-                    <div class="tchip" id="tc2"><span class="ic">${ICON.gmail}</span>Gmail<span class="spin" id="tc2s"></span><span class="ok" id="tc2k">${CHECK}</span></div>
-                  </div></div>
-              </div>
-              <div class="feed-item" id="fi-m2b" style="height:322px">
-                <div class="cont"><div class="brief" id="brief">
-                  <div class="br-title">Investor call prep · Tomorrow, 10:00 AM</div>
-                  <div class="br-row" id="br0"><span class="ic">${ICON.gcal}</span><span><b>Calendar</b> · 30-min sync with Northstar Ventures</span></div>
-                  <div class="br-row" id="br1"><span class="ic">${ICON.fathom}</span><span><b>Fathom</b> · 3 open questions from last week's call</span></div>
-                  <div class="br-row" id="br2"><span class="ic">${ICON.gmail}</span><span><b>Gmail</b> · Follow-up drafted, waiting for your approval</span></div>
-                  <div class="br-acts" id="acts">
-                    <div class="btns" id="btns"><div class="btn pri" id="approve">Approve &amp; send</div><div class="btn sec">Edit draft</div><div class="waiting" id="waiting"><i id="wdot"></i>Waiting for Maya</div></div>
-                    <div class="approved" id="approved"><span class="ok">${CHECK}</span>Approved by Maya · sent from Gmail</div>
-                  </div>
-                </div></div>
-              </div>
-              <div class="feed-item" id="fi-m3" style="height:96px">
-                <div class="msg"><div class="av" style="background:#b85a0c">MO</div><div class="nm">Maya Okafor<span class="ts">10:43 AM</span></div>
-                  <div class="tx"><span class="mention">@Argo</span> ${M3}</div></div>
-              </div>
-              <div class="feed-item" id="fi-m4" style="height:132px">
-                <div class="msg"><div class="av">${LOGO("lg5c")}</div><div class="nm">Argo<span class="app">APP</span><span class="ts">10:43 AM</span></div>
-                  <div class="doneline">
-                    <div class="tchip" id="dc0"><span class="ok">${CHECK}</span>3 applicants screened</div>
-                    <div class="tchip" id="dc1"><span class="ok">${CHECK}</span>Resumes summarized</div>
-                    <div class="tchip" id="dc2"><span class="ok">${CHECK}</span>Next steps scheduled</div>
-                  </div></div>
-              </div>
-            </div></div>
-            <div class="sl-comp" data-layout-allow-overlap>
-              <div class="ph" id="ph" data-layout-allow-overlap>Message #founders-office</div>
-              <div class="in" id="typed" data-layout-allow-overlap><span id="typed-t"></span><span class="caret" id="caret"></span></div>
-              <div class="bar"><i></i><i></i><i></i><i></i></div>
-              <div class="send" id="send"><svg viewBox="0 0 20 20"><path d="M3 10l14-6-5 14-2.5-5.5z" fill="#fff"/></svg></div>
-            </div>
-          </div>
-          <div class="cursor" id="cur5"><div class="cur-ring" id="cur5-ring"></div>${CURSOR}</div>
-        </div>
+        ${slackHTML({ V, LOGO, ICON, M1, M3 }).replace("__CURSOR__", CURSOR)}
       </div>
     </div>
   </section>
@@ -588,7 +488,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
         <svg viewBox="0 0 600 800">
           ${[0, 1, 2, 3].map((i) => { const s = 200 + i * 112; const o = (600 - s) / 2; const y = (800 - s) / 2; return `<rect id="ring-g${i}" x="${o}" y="${y}" width="${s}" height="${s}" rx="${44 + i * 14}" fill="none" stroke="#6ec75a" stroke-width="${3 - i * 0.4}" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" opacity="${1 - i * 0.16}"/>`; }).join("")}
         </svg>
-        <div id="s6-core">${LOGO("lg6")}</div>
+        <div id="s6-core">${LOGO()}</div>
       </div>
     </div>
   </section>
@@ -599,7 +499,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
       <div id="verb-stage">${VERBS.map((v, i) => `<div class="verb" id="verb${i}">${v}</div>`).join("")}</div>
       <div id="verb-rail">${VERBS.map((v, i) => `<div class="vr" id="vr${i}">${v.replace(".", "")}</div>`).join("")}</div>
       <div id="lock">
-        <div id="lock-row"><div id="lock-logo">${LOGO("lg7")}</div><div id="lock-word">Argo</div></div>
+        <div id="lock-row"><div id="lock-logo">${LOGO()}</div><div id="lock-word">${WORDMARK}</div></div>
         <div id="lock-tag">The AI Agent for <span class="serif g">scaling founders.</span></div>
         <div id="lock-url">hireargo.ai</div>
       </div>
@@ -617,6 +517,7 @@ body{margin:0;background:var(--void);color:#fff;font-family:"Inter",sans-serif;-
 const T = ${JSON.stringify(T)};
 const M1 = ${JSON.stringify(M1)};
 const M3 = ${JSON.stringify(M3)};
+const W = ${W}, H = ${H}, V = ${V};
 const TILES = ${JSON.stringify(TILES.map((t) => ({ x: t.x, y: t.y, n: t.n })))};
 const BUMPS = ${JSON.stringify(BUMPS)};
 ${fs.readFileSync("timeline.js", "utf8")}

@@ -5,3 +5,16 @@ work/*.log
 work/audio-data.json
 composition/snapshots/
 composition/.hyperframes/
+composition-vertical/snapshots/
+composition-vertical/.hyperframes/
+work/slackref/
+work/pk/
+work/logos/
+work/qc/
+work/svgl.ts
+work/homarr-*.json
+work/av_*
+work/*.v1.*
+work/sheet.html
+work/qcv/
+composition-vertical/assets/

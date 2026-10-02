@@ -104,3 +104,8 @@ Audio: final bell at the lockup; music fade 57.5–60.
 
 **Music mood for this video:** steady, confident, cinematic-corporate.
 **Audio summary:** quiet ping-filled tension → drop on the logo → steady build through the product → breakdown while Argo thinks → approval lands on the hit → confident close with a bell and fade.
+
+## Revision 2: official logos, real Slack UI, vertical cut
+- **Logos:** every tool logo is official artwork, matched to the icons in the Argo dashboard's Connected apps page (Google's 2026 gradient Workspace icons, Slack, ClickUp, and Fathom's cyan mark on black). Sources are listed in `composition/assets/logos/SOURCES.md`. The Argo mark and the "Argo Agent by Hire Zim" wordmark come from the supplied logo file; the white wordmark is a knockout of the same artwork for the navy background. No hand-drawn logos remain.
+- **Slack:** rebuilt to the post-2023 desktop layout, using real captures found on GitHub as reference: the 40px top bar with history arrows and centred search, the 70px rail (Home / DMs / Activity / Later / More, with Create and the user avatar at the foot), the sidebar and pane as one inset panel, "+ Add a bookmark", Block Kit app messages (green #007A5A primary and outlined buttons), the "Today ⌄" date pill, and the two-row composer. It is authored in Slack's logical pixels and scaled up as a whole for legibility. Aubergine theme colours are from Slack's documented palette.
+- **Vertical 9:16 (1080×1920):** same timing, audio and copy. Layouts are restacked and the desktop windows are shown through camera moves (establishing shot, then punch-ins), so the real UI is never squashed. Output: `brag-vertical.mp4`.
